@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SportsTracker</title>
+<meta name="description" content="Suivi personnel de séances de sport">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SportsTracker">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── RESET & BASE ─────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f1117;
+  --bg2:#1a1d27;
+  --bg3:#22263a;
+  --card:#1e2235;
+  --border:#2e3250;
+  --text:#f0f2ff;
+  --text2:#8b91b0;
+  --text3:#555a7a;
+  --accent:#6c8fff;
+  --accent-bg:#1a2140;
+  --green:#3dd68c;
+  --green-bg:#0e2a1c;
+  --red:#ff6b6b;
+  --red-bg:#2a0e0e;
+  --radius:14px;
+  --radius-sm:8px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:16px;line-height:1.5;overflow-x:hidden}
+input,select,button,textarea{font-family:'Inter',sans-serif}
+
+/* ── AUTH SCREEN ─────────────────────────────────────── */
+#auth-screen{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:32px 24px;
+}
+.auth-logo{font-size:28px;font-weight:600;letter-spacing:-.04em;margin-bottom:6px}
+.auth-sub{font-size:14px;color:var(--text2);margin-bottom:40px}
+.auth-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 24px}
+.auth-tabs{display:flex;gap:4px;background:var(--bg2);padding:4px;border-radius:10px;margin-bottom:24px;border:1px solid var(--border)}
+.auth-tab{flex:1;padding:8px;font-size:13px;font-weight:500;border:none;border-radius:8px;background:transparent;color:var(--text2);cursor:pointer;transition:all .15s}
+.auth-tab.active{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.auth-field{margin-bottom:16px}
+.auth-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;display:block}
+.auth-input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px}
+.auth-input:focus{outline:none;border-color:var(--accent)}
+.auth-btn{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;cursor:pointer;margin-top:4px;letter-spacing:-.01em}
+.auth-btn:active{opacity:.85;transform:scale(.98)}
+.auth-error{font-size:13px;color:var(--red);background:var(--red-bg);border:1px solid #3a1515;border-radius:var(--radius-sm);padding:10px 14px;margin-top:14px;display:none}
+.auth-error.show{display:block}
+
+/* ── APP SHELL ───────────────────────────────────────── */
+#app-screen{display:none;flex-direction:column;height:100vh;max-width:480px;margin:0 auto}
+#app-screen.visible{display:flex}
+
+/* ── HEADER ──────────────────────────────────────────── */
+.app-header{
+  padding:16px 18px 12px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+  background:var(--bg);
+  position:sticky;top:0;z-index:10;
+}
+.app-title-wrap{}
+.app-title{font-size:18px;font-weight:600;letter-spacing:-.03em}
+.app-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:10px}
+.user-badge{font-size:12px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);padding:5px 10px;border-radius:20px}
+.logout-btn{font-size:12px;color:var(--text3);background:transparent;border:1px solid var(--border);padding:5px 10px;border-radius:20px;cursor:pointer}
+.logout-btn:hover{color:var(--red);border-color:#3a1515}
+
+/* ── NAV ─────────────────────────────────────────────── */
+.nav{
+  display:flex;gap:3px;background:var(--bg2);padding:4px;
+  border-radius:var(--radius);margin:14px 18px;border:1px solid var(--border);flex-shrink:0;
+}
+.nav-btn{flex:1;padding:7px 2px;font-size:11px;font-weight:500;border:none;border-radius:10px;
+  background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.01em}
+.nav-btn.active{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+
+/* ── SCROLLABLE CONTENT ──────────────────────────────── */
+.content{flex:1;overflow-y:auto;padding:0 18px calc(20px + var(--safe-bottom))}
+.section{display:none}
+.section.on{display:block}
+
+/* ── COMPONENTS ──────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:12px}
+.fl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px}
+input[type=text],input[type=number],input[type=date],input[type=password],select,textarea{
+  width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--bg2);color:var(--text);font-size:14px;outline:none;
+}
+input:focus,select:focus{border-color:var(--accent)}
+.field{margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.btn-save{width:100%;padding:12px;font-size:14px;font-weight:600;border:none;
+  border-radius:var(--radius-sm);background:var(--accent);color:#fff;cursor:pointer;letter-spacing:-.01em}
+.btn-save:active{transform:scale(.98);opacity:.9}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:6px 12px;font-size:12px;font-weight:500;border:1px solid var(--border);
+  border-radius:var(--radius-sm);background:transparent;color:var(--text2);cursor:pointer}
+.btn-del{padding:4px 9px;font-size:11px;border:1px solid #3a1a1a;border-radius:var(--radius-sm);
+  background:transparent;color:var(--red);cursor:pointer}
+.tag{display:inline-block;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
+.tag-w{background:var(--accent-bg);color:var(--accent)}
+.tag-c{background:var(--green-bg);color:var(--green)}
+.slbl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin:16px 0 8px}
+.empty{text-align:center;padding:32px 0;color:var(--text3);font-size:13px}
+.spinner{text-align:center;padding:24px;color:var(--text3);font-size:13px}
+.toast{position:fixed;bottom:calc(24px + var(--safe-bottom));left:50%;transform:translateX(-50%);
+  background:#2a3568;color:var(--accent);font-size:13px;font-weight:500;padding:10px 20px;
+  border-radius:20px;border:1px solid var(--border);z-index:100;
+  opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* ── LOG ITEMS ───────────────────────────────────────── */
+.log-item{display:flex;align-items:center;justify-content:space-between;
+  padding:13px 0;border-bottom:1px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.log-name{font-size:14px;font-weight:500;color:var(--text)}
+.log-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.log-val{font-size:14px;font-weight:600;color:var(--text)}
+.log-date{font-size:11px;color:var(--text3);margin-top:2px;text-align:right}
+
+/* ── TIMELINE ────────────────────────────────────────── */
+.tl-block{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.tl-block.today-block{border-color:var(--accent);background:#161c2e}
+.tl-block.future-block{opacity:.55}
+.tl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tl-date-left{display:flex;align-items:baseline;gap:8px}
+.tl-day-num{font-size:20px;font-weight:600;color:var(--text);letter-spacing:-.03em;line-height:1}
+.tl-day-info{display:flex;flex-direction:column;gap:1px}
+.tl-dow{font-size:12px;font-weight:500;color:var(--text2)}
+.tl-month{font-size:11px;color:var(--text3)}
+.tl-badge-today{font-size:10px;font-weight:600;letter-spacing:.05em;background:var(--accent);color:#fff;padding:3px 8px;border-radius:20px}
+.tl-badge-future{font-size:10px;font-weight:500;color:var(--text3);background:var(--bg2);border:1px solid var(--border);padding:3px 8px;border-radius:20px}
+.tl-chips{display:flex;flex-wrap:wrap;gap:7px}
+.tl-chip{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.tl-chip-w{background:var(--accent-bg);color:var(--accent);border:1px solid #2a3568}
+.tl-chip-c{background:var(--green-bg);color:var(--green);border:1px solid #1a3d2a}
+.tl-detail{font-size:11px;color:var(--text3);margin-top:1px}
+.tl-rest{font-size:12px;color:var(--text3);font-style:italic}
+
+/* ── CALENDAR ────────────────────────────────────────── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:16px}
+.cal-dn{text-align:center;font-size:11px;color:var(--text3);padding:4px 0;font-weight:500}
+.cal-d{text-align:center;font-size:13px;padding:7px 2px;border-radius:var(--radius-sm);cursor:pointer;
+  min-height:34px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--text2)}
+.cal-d:hover{background:var(--bg2)}
+.cal-d.had{background:var(--accent-bg);color:var(--accent);font-weight:500}
+.cal-d.sel{outline:2px solid var(--accent);outline-offset:1px}
+.cal-d.oth{color:var(--text3)}
+.cdot{width:4px;height:4px;border-radius:50%;background:var(--accent);margin:2px auto 0}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-ml{font-size:15px;font-weight:600;color:var(--text)}
+
+/* ── PROGRESS ────────────────────────────────────────── */
+.stat-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center}
+.stat-v{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-.03em}
+.stat-l{font-size:11px;color:var(--text2);margin-top:3px}
+.chart-wrap{position:relative;width:100%;height:200px;margin-top:8px}
+
+/* ── SETTINGS ────────────────────────────────────────── */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-size:14px;color:var(--text)}
+.setting-sub{font-size:12px;color:var(--text3);margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-logo">SportsTracker</div>
+  <div class="auth-sub">Suivi de tes séances de sport</div>
+
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login',this)">Connexion</button>
+      <button class="auth-tab" onclick="switchAuthTab('register',this)">Inscription</button>
+    </div>
+
+    <div id="auth-login">
+      <div class="auth-field">
+        <label class="auth-label">Username</label>
+        <input class="auth-input" type="text" id="login-username" placeholder="tonusername" autocomplete="username">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Mot de passe</label>
+        <input class="auth-input" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="auth-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
+    </div>
+
+    <div id="auth-register" style="display:none">
+      <div class="auth-field">
+        <label class="auth-label">Username</label>
+        <input class="auth-input" type="text" id="reg-username" placeholder="tonusername" autocomplete="username">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Mot de passe</label>
+        <input class="auth-input" type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Confirmer le mot de passe</label>
+        <input class="auth-input" type="password" id="reg-password2" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button class="auth-btn" id="reg-btn" onclick="doRegister()">Créer mon compte</button>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     APP SCREEN
+══════════════════════════════════════════════════════ -->
+<div id="app-screen">
+
+  <div class="app-header">
+    <div class="app-title-wrap">
+      <div class="app-title">SportsTracker</div>
+      <div class="app-sub" id="app-sub"></div>
+    </div>
+    <div class="header-right">
+      <span class="user-badge" id="user-badge"></span>
+      <button class="logout-btn" onclick="doLogout()">Déco</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="nav('add',this)">+ Séance</button>
+    <button class="nav-btn" onclick="nav('timeline',this)">Timeline</button>
+    <button class="nav-btn" onclick="nav('progress',this)">Progrès</button>
+    <button class="nav-btn" onclick="nav('cal',this)">Calendrier</button>
+    <button class="nav-btn" onclick="nav('settings',this)">Réglages</button>
+  </div>
+
+  <div class="content">
+
+    <!-- AJOUTER SÉANCE -->
+    <div id="s-add" class="section on">
+      <div class="card">
+        <div class="field"><div class="fl">Date</div><input type="date" id="a-date"></div>
+        <div class="field"><div class="fl">Exercice</div><select id="a-exo" onchange="updateForm()"></select></div>
+        <div id="f-weight">
+          <div class="g3">
+            <div class="field"><div class="fl">Séries</div><input type="number" id="a-sets" min="1" max="30" value="3"></div>
+            <div class="field"><div class="fl">Reps</div><input type="number" id="a-reps" min="1" max="100" value="8"></div>
+            <div class="field"><div class="fl">Poids kg</div><input type="number" id="a-kg" min="0" step="0.5" placeholder="0"></div>
+          </div>
+        </div>
+        <div id="f-cardio" style="display:none">
+          <div class="g2">
+            <div class="field"><div class="fl">Distance km</div><input type="number" id="a-dist" min="0" step="0.1" placeholder="0"></div>
+            <div class="field"><div class="fl">Durée min</div><input type="number" id="a-time" min="0" placeholder="0"></div>
+          </div>
+        </div>
+        <div class="field"><div class="fl">Note</div><input type="text" id="a-note" placeholder="Optionnel…"></div>
+        <button class="btn-save" id="save-btn" onclick="addLog()">Enregistrer</button>
+      </div>
+      <div class="slbl">Récent</div>
+      <div class="card" style="padding:4px 18px" id="recent-list"><div class="spinner">Chargement…</div></div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div id="s-timeline" class="section">
+      <div id="tl-content"><div class="spinner">Chargement…</div></div>
+    </div>
+
+    <!-- PROGRESSION -->
+    <div id="s-progress" class="section">
+      <div class="field" style="margin-bottom:14px"><div class="fl">Exercice</div><select id="p-exo" onchange="renderProg()"></select></div>
+      <div id="prog-body"></div>
+    </div>
+
+    <!-- CALENDRIER -->
+    <div id="s-cal" class="section">
+      <div class="cal-nav">
+        <button class="btn-sm" onclick="chM(-1)">&#8249;</button>
+        <span class="cal-ml" id="cal-ml"></span>
+        <button class="btn-sm" onclick="chM(1)">&#8250;</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div id="cal-detail"></div>
+    </div>
+
+    <!-- RÉGLAGES -->
+    <div id="s-settings" class="section">
+
+      <!-- Exercices -->
+      <div class="slbl">Exercices</div>
+      <div class="card">
+        <div class="g2" style="margin-bottom:12px">
+          <div class="field" style="margin-bottom:0"><div class="fl">Nom</div><input type="text" id="e-name" placeholder="Nouveau exercice…"></div>
+          <div class="field" style="margin-bottom:0"><div class="fl">Type</div>
+            <select id="e-type"><option value="weight">Musculation</option><option value="cardio">Cardio</option></select>
+          </div>
+        </div>
+        <button class="btn-save" onclick="addExo()">Ajouter</button>
+      </div>
+      <div class="card" style="padding:4px 18px" id="exo-list"><div class="spinner">Chargement…</div></div>
+
+      <!-- Import / Export -->
+      <div class="slbl">Import / Export</div>
+      <div class="card">
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Exporter mes données</div>
+            <div class="setting-sub">Télécharge un fichier JSON avec toutes tes séances</div>
+          </div>
+          <button class="btn-sm" onclick="exportData()">Exporter</button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Importer des données</div>
+            <div class="setting-sub">Importe un fichier JSON exporté précédemment</div>
+          </div>
+          <button class="btn-sm" onclick="document.getElementById('import-file').click()">Importer</button>
+        </div>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+
+      <!-- Compte -->
+      <div class="slbl">Compte</div>
+      <div class="card">
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Se déconnecter</div>
+            <div class="setting-sub" id="settings-username"></div>
+          </div>
+          <button class="btn-sm" style="color:var(--red);border-color:#3a1515" onclick="doLogout()">Déconnexion</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app-screen -->
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ══════════════════════════════════════════════════════
+// ⚙️  CONFIGURATION — COLLE TES CLÉS SUPABASE ICI
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://mgefkerdmjsbiglazcmb.supabase.co/rest/v1/'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZWZrZXJkbWpzYmlnbGF6Y21iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTE2MDcsImV4cCI6MjA5MzU2NzYwN30.4fn1avvYQFnH0UZx6_h7LkNsYrBxLdYKkfMfbUqxD3I'
+// ══════════════════════════════════════════════════════
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let currentUser = null
+let exercises = []
+let logs = []
+let calMonth = new Date()
+let selDay = null
+let progChart = null
+
+const DOW = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']
+const MNAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const MON_SHORT = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc']
+const DEFAULT_EXERCISES = [
+  {name:'Développé couché',type:'weight'},
+  {name:'Squat',type:'weight'},
+  {name:'Soulevé de terre',type:'weight'},
+  {name:'Traction lestée',type:'weight'},
+  {name:'Dips lesté',type:'weight'},
+  {name:'Course à pied',type:'cardio'},
+]
+
+function uid(){return 'l'+Date.now()+Math.random().toString(36).slice(2,5)}
+function today(){return new Date().toISOString().slice(0,10)}
+function fmt(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`}
+function fmtShort(s){if(!s)return'';const[y,m,d]=s.split('-');return`${parseInt(d)} ${MON_SHORT[parseInt(m)-1]}`}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+
+// ── AUTH ──────────────────────────────────────────────
+
+function switchAuthTab(tab, btn){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('auth-login').style.display = tab==='login'?'block':'none'
+  document.getElementById('auth-register').style.display = tab==='register'?'block':'none'
+  document.getElementById('auth-error').classList.remove('show')
+}
+
+function showAuthError(msg){
+  const el = document.getElementById('auth-error')
+  el.textContent = msg
+  el.classList.add('show')
+}
+
+async function doLogin(){
+  const username = document.getElementById('login-username').value.trim().toLowerCase()
+  const password = document.getElementById('login-password').value
+  if(!username||!password){showAuthError('Remplis tous les champs');return}
+  const btn = document.getElementById('login-btn')
+  btn.disabled = true; btn.textContent = 'Connexion…'
+  // On utilise username@sportstracker.app comme email fictif
+  const email = username+'@sportstracker.app'
+  const {data,error} = await sb.auth.signInWithPassword({email,password})
+  if(error){showAuthError('Username ou mot de passe incorrect');btn.disabled=false;btn.textContent='Se connecter';return}
+  await loadApp(data.user, username)
+}
+
+async function doRegister(){
+  const username = document.getElementById('reg-username').value.trim().toLowerCase()
+  const password = document.getElementById('reg-password').value
+  const password2 = document.getElementById('reg-password2').value
+  if(!username||!password){showAuthError('Remplis tous les champs');return}
+  if(password!==password2){showAuthError('Les mots de passe ne correspondent pas');return}
+  if(password.length<6){showAuthError('Mot de passe trop court (6 caractères minimum)');return}
+  if(!/^[a-z0-9_]{3,20}$/.test(username)){showAuthError('Username: 3-20 caractères, lettres/chiffres/underscore');return}
+  const btn = document.getElementById('reg-btn')
+  btn.disabled=true; btn.textContent='Création…'
+  // Vérifier si username déjà pris
+  const {data:existing} = await sb.from('profiles').select('id').eq('username',username).maybeSingle()
+  if(existing){showAuthError('Ce username est déjà pris');btn.disabled=false;btn.textContent='Créer mon compte';return}
+  const email = username+'@sportstracker.app'
+  const {data,error} = await sb.auth.signUp({email,password})
+  if(error){showAuthError('Erreur lors de la création: '+error.message);btn.disabled=false;btn.textContent='Créer mon compte';return}
+  // Créer le profil
+  await sb.from('profiles').insert({id:data.user.id, username})
+  // Créer les exercices par défaut
+  const exoRows = DEFAULT_EXERCISES.map(e=>({id:uid(),user_id:data.user.id,name:e.name,type:e.type}))
+  await sb.from('exercises').insert(exoRows)
+  await loadApp(data.user, username)
+}
+
+async function doLogout(){
+  await sb.auth.signOut()
+  currentUser=null; exercises=[]; logs=[]
+  document.getElementById('app-screen').classList.remove('visible')
+  document.getElementById('auth-screen').style.display='flex'
+  document.getElementById('login-username').value=''
+  document.getElementById('login-password').value=''
+  document.getElementById('auth-error').classList.remove('show')
+}
+
+// ── LOAD APP ──────────────────────────────────────────
+
+async function loadApp(user, username){
+  currentUser = user
+  document.getElementById('auth-screen').style.display='none'
+  document.getElementById('app-screen').classList.add('visible')
+  const d = new Date()
+  document.getElementById('app-sub').textContent = d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
+  document.getElementById('user-badge').textContent = username || ''
+  document.getElementById('settings-username').textContent = 'Connecté en tant que '+username
+  document.getElementById('a-date').value = today()
+  await fetchAll()
+}
+
+async function fetchAll(){
+  await Promise.all([fetchExercises(), fetchLogs()])
+  fillSels()
+  updateForm()
+  renderRecent()
+}
+
+async function fetchExercises(){
+  const {data} = await sb.from('exercises').select('*').eq('user_id',currentUser.id).order('created_at')
+  exercises = data||[]
+  renderExos()
+}
+
+async function fetchLogs(){
+  const {data} = await sb.from('logs').select('*').eq('user_id',currentUser.id).order('date',{ascending:false})
+  logs = data||[]
+}
+
+// ── NAV ───────────────────────────────────────────────
+
+function nav(id, btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'))
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'))
+  document.getElementById('s-'+id).classList.add('on')
+  btn.classList.add('active')
+  if(id==='timeline')renderTL()
+  if(id==='progress')renderProg()
+  if(id==='cal')renderCal()
+  if(id==='settings')renderExos()
+  if(id==='add'){fetchLogs().then(()=>renderRecent())}
+}
+
+// ── FORM ──────────────────────────────────────────────
+
+function fillSels(){
+  ['a-exo','p-exo'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return
+    const v=el.value; el.innerHTML=''
+    exercises.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=e.name;el.appendChild(o)})
+    if(v)el.value=v
+  })
+}
+
+function updateForm(){
+  const exo=exercises.find(e=>e.id===document.getElementById('a-exo').value)
+  if(!exo)return
+  document.getElementById('f-weight').style.display=exo.type==='weight'?'block':'none'
+  document.getElementById('f-cardio').style.display=exo.type==='cardio'?'block':'none'
+}
+
+function logDetail(l){
+  if(l.type==='weight')return`${l.sets}×${l.reps} · ${l.weight} kg`
+  return`${l.distance} km · ${l.duration} min`
+}
+
+// ── ADD LOG ───────────────────────────────────────────
+
+async function addLog(){
+  const exoId=document.getElementById('a-exo').value
+  const exo=exercises.find(e=>e.id===exoId);if(!exo)return
+  const date=document.getElementById('a-date').value||today()
+  const note=document.getElementById('a-note').value.trim()
+  const btn=document.getElementById('save-btn')
+  btn.disabled=true; btn.textContent='Enregistrement…'
+
+  let entry={id:uid(),user_id:currentUser.id,exo_id:exoId,date,note,type:exo.type}
+  if(exo.type==='weight'){
+    entry.sets=parseInt(document.getElementById('a-sets').value)||3
+    entry.reps=parseInt(document.getElementById('a-reps').value)||8
+    entry.weight=parseFloat(document.getElementById('a-kg').value)||0
+  } else {
+    entry.distance=parseFloat(document.getElementById('a-dist').value)||0
+    entry.duration=parseInt(document.getElementById('a-time').value)||0
+  }
+
+  const {error} = await sb.from('logs').insert(entry)
+  btn.disabled=false; btn.textContent='Enregistrer'
+  if(error){showToast('Erreur lors de l\'enregistrement');return}
+  logs.unshift(entry)
+  document.getElementById('a-note').value=''
+  showToast('Séance enregistrée ✓')
+  renderRecent()
+}
+
+async function delLog(id){
+  await sb.from('logs').delete().eq('id',id).eq('user_id',currentUser.id)
+  logs=logs.filter(l=>l.id!==id)
+  renderRecent()
+}
+
+// ── RECENT ────────────────────────────────────────────
+
+function renderRecent(){
+  const el=document.getElementById('recent-list')
+  const items=logs.slice(0,20)
+  if(!items.length){el.innerHTML='<div class="empty">Aucune séance pour l\'instant</div>';return}
+  el.innerHTML=items.map(l=>{
+    const exo=exercises.find(e=>e.id===l.exo_id)
+    return`<div class="log-item">
+      <div><div class="log-name">${exo?exo.name:'?'}</div><div class="log-meta">${logDetail(l)}${l.note?' · '+l.note:''}</div></div>
+      <div style="text-align:right">
+        <div class="log-val">${l.type==='weight'?l.weight+' kg':l.distance+' km'}</div>
+        <div class="log-date">${fmt(l.date)}</div>
+        <button class="btn-del" onclick="delLog('${l.id}')">✕</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+// ── TIMELINE ──────────────────────────────────────────
+
+async function renderTL(){
+  document.getElementById('tl-content').innerHTML='<div class="spinner">Chargement…</div>'
+  await fetchLogs()
+  const todayISO=today()
+  const base=new Date()
+  const days=[]
+  for(let i=13;i>=0;i--){const dt=new Date(base);dt.setDate(base.getDate()-i);days.push(dt.toISOString().slice(0,10))}
+  days.push(...[1,2].map(i=>{const dt=new Date(base);dt.setDate(base.getDate()+i);return dt.toISOString().slice(0,10)}))
+  days.reverse()
+  let html=''
+  days.forEach(iso=>{
+    const[,m,d]=iso.split('-')
+    const dt=new Date(iso+'T12:00:00')
+    const dowIdx=(dt.getDay()+6)%7
+    const isToday=iso===todayISO, isFuture=iso>todayISO
+    const dayLogs=logs.filter(l=>l.date===iso)
+    const cls=isToday?' today-block':isFuture?' future-block':''
+    html+=`<div class="tl-block${cls}">
+      <div class="tl-head">
+        <div class="tl-date-left">
+          <div class="tl-day-num">${parseInt(d)}</div>
+          <div class="tl-day-info"><span class="tl-dow">${DOW[dowIdx]}</span><span class="tl-month">${MON_SHORT[parseInt(m)-1]}</span></div>
+        </div>
+        ${isToday?'<span class="tl-badge-today">Aujourd\'hui</span>':isFuture?'<span class="tl-badge-future">à venir</span>':''}
+      </div>
+      <div class="tl-chips">`
+    if(dayLogs.length){
+      dayLogs.forEach(l=>{
+        const exo=exercises.find(e=>e.id===l.exo_id)
+        const tc=exo&&exo.type==='weight'?'tl-chip-w':'tl-chip-c'
+        html+=`<div class="tl-chip ${tc}"><div>${exo?exo.name:'?'}</div><div class="tl-detail">${logDetail(l)}</div></div>`
+      })
+    } else if(!isFuture){
+      html+=`<span class="tl-rest">Repos</span>`
+    }
+    html+=`</div></div>`
+  })
+  document.getElementById('tl-content').innerHTML=html
+}
+
+// ── CALENDAR ──────────────────────────────────────────
+
+function chM(d){calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+d,1);renderCal()}
+
+async function renderCal(){
+  document.getElementById('cal-ml').textContent=MNAMES[calMonth.getMonth()]+' '+calMonth.getFullYear()
+  await fetchLogs()
+  const y=calMonth.getFullYear(),m=calMonth.getMonth()
+  const sess={}
+  logs.forEach(l=>{const dt=new Date(l.date);if(dt.getFullYear()===y&&dt.getMonth()===m)sess[l.date]=(sess[l.date]||0)+1})
+  let html=DOW.map(d=>`<div class="cal-dn">${d}</div>`).join('')
+  const first=new Date(y,m,1)
+  const start=(first.getDay()+6)%7
+  for(let i=0;i<start;i++)html+=`<div class="cal-d oth"></div>`
+  const dim=new Date(y,m+1,0).getDate()
+  const todayISO=today()
+  for(let d=1;d<=dim;d++){
+    const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const isA=iso===todayISO,isSel=selDay===iso,h=sess[iso]||0
+    html+=`<div class="cal-d${isA?' had':''}${isSel?' sel':''}" onclick="selD('${iso}')">${d}${h?'<div class="cdot"></div>':''}</div>`
+  }
+  document.getElementById('cal-grid').innerHTML=html
+  if(selDay)renderDayD(selDay)
+}
+
+function selD(iso){selDay=iso;renderCal()}
+
+function renderDayD(iso){
+  const el=document.getElementById('cal-detail')
+  const dayLogs=logs.filter(l=>l.date===iso)
+  if(!dayLogs.length){el.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:8px 0">Aucune séance le ${fmt(iso)}</div>`;return}
+  el.innerHTML=`<div class="slbl">Séances du ${fmt(iso)}</div><div class="card" style="padding:4px 18px">`+
+  dayLogs.map(l=>{const exo=exercises.find(e=>e.id===l.exo_id);return`<div class="log-item"><div><div class="log-name">${exo?exo.name:'?'}</div><div class="log-meta">${logDetail(l)}</div></div></div>`}).join('')+`</div>`
+}
+
+// ── PROGRESS ──────────────────────────────────────────
+
+async function renderProg(){
+  const exoId=document.getElementById('p-exo').value
+  const exo=exercises.find(e=>e.id===exoId)
+  if(!exo)return
+  await fetchLogs()
+  const exoLogs=logs.filter(l=>l.exo_id===exoId).sort((a,b)=>a.date.localeCompare(b.date))
+  const el=document.getElementById('prog-body')
+  if(!exoLogs.length){if(progChart){progChart.destroy();progChart=null}el.innerHTML='<div class="empty">Pas encore de données</div>';return}
+  if(exo.type==='weight'){
+    const wts=exoLogs.map(l=>l.weight).filter(w=>w>0)
+    const mx=wts.length?Math.max(...wts):0
+    const last=exoLogs[exoLogs.length-1]
+    const first=exoLogs[0]
+    const diff=mx>0&&first.weight>0?(((last.weight-first.weight)/first.weight)*100).toFixed(1):null
+    el.innerHTML=`<div class="stat-g">
+      <div class="stat"><div class="stat-v">${mx} kg</div><div class="stat-l">record</div></div>
+      <div class="stat"><div class="stat-v">${last.weight} kg</div><div class="stat-l">dernière séance</div></div>
+    </div>
+    ${diff!==null?`<div style="font-size:13px;color:${parseFloat(diff)>=0?'var(--green)':'var(--red)'};margin-bottom:12px">${parseFloat(diff)>=0?'↑':'↓'} ${Math.abs(diff)}% depuis le début</div>`:''}
+    <div class="card"><div class="fl" style="margin-bottom:8px">Évolution poids</div>
+    <div class="chart-wrap"><canvas id="p-chart"></canvas></div></div>
+    <div class="slbl">Historique</div><div class="card" style="padding:4px 18px">`+
+    [...exoLogs].reverse().slice(0,10).map(l=>`<div class="log-item"><div><div class="log-name">${fmt(l.date)}</div><div class="log-meta">${l.sets}×${l.reps}${l.note?' · '+l.note:''}</div></div><div class="log-val">${l.weight} kg</div></div>`).join('')+`</div>`
+    setTimeout(()=>drawChart(exoLogs.map(l=>fmtShort(l.date)),exoLogs.map(l=>l.weight),'Poids','#6c8fff'),50)
+  } else {
+    const last=exoLogs[exoLogs.length-1]
+    const mx=Math.max(...exoLogs.map(l=>l.distance))
+    el.innerHTML=`<div class="stat-g">
+      <div class="stat"><div class="stat-v">${mx.toFixed(1)} km</div><div class="stat-l">record</div></div>
+      <div class="stat"><div class="stat-v">${last.distance} km</div><div class="stat-l">dernière séance</div></div>
+    </div>
+    <div class="card"><div class="fl" style="margin-bottom:8px">Évolution distance</div>
+    <div class="chart-wrap"><canvas id="p-chart"></canvas></div></div>
+    <div class="slbl">Historique</div><div class="card" style="padding:4px 18px">`+
+    [...exoLogs].reverse().slice(0,10).map(l=>`<div class="log-item"><div><div class="log-name">${fmt(l.date)}</div><div class="log-meta">${l.duration} min${l.note?' · '+l.note:''}</div></div><div class="log-val">${l.distance} km</div></div>`).join('')+`</div>`
+    setTimeout(()=>drawChart(exoLogs.map(l=>fmtShort(l.date)),exoLogs.map(l=>l.distance),'Distance','#3dd68c'),50)
+  }
+}
+
+function drawChart(labels,data,label,color){
+  if(progChart){progChart.destroy();progChart=null}
+  const c=document.getElementById('p-chart');if(!c)return
+  progChart=new Chart(c,{type:'line',data:{labels,datasets:[{label,data,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:4,pointBackgroundColor:color,tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'},autoSkip:true,maxTicksLimit:8},y:{ticks:{color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'}}}}})
+}
+
+// ── EXERCISES ─────────────────────────────────────────
+
+function renderExos(){
+  const el=document.getElementById('exo-list')
+  if(!exercises.length){el.innerHTML='<div class="empty">Aucun exercice</div>';return}
+  el.innerHTML=exercises.map(e=>`<div class="log-item">
+    <div style="font-size:14px;color:var(--text)">${e.name}</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="tag ${e.type==='weight'?'tag-w':'tag-c'}">${e.type==='weight'?'Muscu':'Cardio'}</span>
+      <button class="btn-del" onclick="delExo('${e.id}')">✕</button>
+    </div>
+  </div>`).join('')
+}
+
+async function addExo(){
+  const name=document.getElementById('e-name').value.trim();if(!name)return
+  const type=document.getElementById('e-type').value
+  const entry={id:uid(),user_id:currentUser.id,name,type}
+  const {error}=await sb.from('exercises').insert(entry)
+  if(error){showToast('Erreur');return}
+  exercises.push(entry)
+  document.getElementById('e-name').value=''
+  fillSels();renderExos();updateForm()
+  showToast('Exercice ajouté ✓')
+}
+
+async function delExo(id){
+  if(logs.some(l=>l.exo_id===id)){showToast('Supprime d\'abord les séances liées');return}
+  await sb.from('exercises').delete().eq('id',id).eq('user_id',currentUser.id)
+  exercises=exercises.filter(e=>e.id!==id)
+  fillSels();renderExos()
+  showToast('Exercice supprimé')
+}
+
+// ── EXPORT / IMPORT ───────────────────────────────────
+
+async function exportData(){
+  await fetchAll()
+  const data={version:1,exportDate:new Date().toISOString(),exercises,logs}
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url; a.download=`sportstracker-export-${today()}.json`; a.click()
+  URL.revokeObjectURL(url)
+  showToast('Export téléchargé ✓')
+}
+
+async function importData(event){
+  const file=event.target.files[0];if(!file)return
+  const reader=new FileReader()
+  reader.onload=async(e)=>{
+    try{
+      const data=JSON.parse(e.target.result)
+      if(!data.exercises||!data.logs){showToast('Fichier invalide');return}
+      // Import exercices (skip doublons)
+      const existingNames=exercises.map(e=>e.name)
+      const newExos=data.exercises
+        .filter(e=>!existingNames.includes(e.name))
+        .map(e=>({id:uid(),user_id:currentUser.id,name:e.name,type:e.type}))
+      if(newExos.length) await sb.from('exercises').insert(newExos)
+      // Import logs
+      const existingIds=logs.map(l=>l.id)
+      const allExos=[...exercises,...newExos]
+      const newLogs=data.logs
+        .filter(l=>!existingIds.includes(l.id))
+        .map(l=>{
+          const matchedExo=allExos.find(e=>e.name===(data.exercises.find(de=>de.id===l.exo_id)||{}).name)
+          return{...l,id:uid(),user_id:currentUser.id,exo_id:matchedExo?matchedExo.id:l.exo_id}
+        })
+      if(newLogs.length) await sb.from('logs').insert(newLogs)
+      await fetchAll()
+      showToast(`Import réussi : ${newExos.length} exos, ${newLogs.length} séances ✓`)
+    }catch{showToast('Erreur lors de l\'import')}
+    event.target.value=''
+  }
+  reader.readAsText(file)
+}
+
+// ── INIT ──────────────────────────────────────────────
+
+async function init(){
+  const {data:{session}} = await sb.auth.getSession()
+  if(session){
+    const {data:profile} = await sb.from('profiles').select('username').eq('id',session.user.id).maybeSingle()
+    await loadApp(session.user, profile?.username||'')
+  }
+}
+
+init()
+</script>
+</body>
+</html>
