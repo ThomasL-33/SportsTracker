@@ -361,7 +361,6 @@ input:focus,select:focus{border-color:var(--accent)}
 ══════════════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // ⚙️  CONFIGURATION — COLLE TES CLÉS SUPABASE ICI
@@ -704,8 +703,11 @@ async function renderProg(){
 function drawChart(dates,data,label,color){
   if(progChart){progChart.destroy();progChart=null}
   const c=document.getElementById('p-chart');if(!c)return
-  const points=dates.map((d,i)=>({x:d,y:data[i]}))
-  progChart=new Chart(c,{type:'line',data:{datasets:[{label,data:points,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:4,pointBackgroundColor:color,tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{type:'time',time:{unit:'day',tooltipFormat:'dd/MM/yyyy',displayFormats:{day:'d MMM',month:'MMM yyyy'}},adapters:{date:{locale:'fr'}},ticks:{color:'#8b91b0',font:{size:11,family:'Inter'},maxTicksLimit:8},grid:{color:'#2e3250'},border:{color:'#2e3250'}},y:{ticks:{color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'}}}}})}
+  // Convert ISO dates to timestamps (ms) for true linear spacing
+  const points=dates.map((d,i)=>({x:new Date(d+'T12:00:00').getTime(),y:data[i]}))
+  // Build readable tick labels from timestamps
+  const tsMin=points[0].x, tsMax=points[points.length-1].x
+  progChart=new Chart(c,{type:'line',data:{datasets:[{label,data:points,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:4,pointBackgroundColor:color,tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>{const d=new Date(items[0].parsed.x);return`${d.getDate()} ${MON_SHORT[d.getMonth()]} ${d.getFullYear()}`}}}},scales:{x:{type:'linear',ticks:{color:'#8b91b0',font:{size:11,family:'Inter'},maxTicksLimit:8,callback:function(val){const d=new Date(val);return`${d.getDate()} ${MON_SHORT[d.getMonth()]}`}},grid:{color:'#2e3250'},border:{color:'#2e3250'},min:tsMin,max:tsMax},y:{ticks:{color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'}}}}})}
 
 
 // ── EXERCISES ─────────────────────────────────────────
