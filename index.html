@@ -703,11 +703,18 @@ async function renderProg(){
 function drawChart(dates,data,label,color){
   if(progChart){progChart.destroy();progChart=null}
   const c=document.getElementById('p-chart');if(!c)return
-  // Convert ISO dates to timestamps (ms) for true linear spacing
   const points=dates.map((d,i)=>({x:new Date(d+'T12:00:00').getTime(),y:data[i]}))
-  // Build readable tick labels from timestamps
   const tsMin=points[0].x, tsMax=points[points.length-1].x
-  progChart=new Chart(c,{type:'line',data:{datasets:[{label,data:points,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:4,pointBackgroundColor:color,tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>{const d=new Date(items[0].parsed.x);return`${d.getDate()} ${MON_SHORT[d.getMonth()]} ${d.getFullYear()}`}}}},scales:{x:{type:'linear',ticks:{color:'#8b91b0',font:{size:11,family:'Inter'},maxTicksLimit:8,callback:function(val){const d=new Date(val);return`${d.getDate()} ${MON_SHORT[d.getMonth()]}`}},grid:{color:'#2e3250'},border:{color:'#2e3250'},min:tsMin,max:tsMax},y:{ticks:{color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'}}}}})}
+  // X axis: if single point, add ±3 days padding to avoid empty chart
+  const xPad=86400000*3
+  const xMin=points.length===1?tsMin-xPad:tsMin
+  const xMax=points.length===1?tsMax+xPad:tsMax
+  // Y axis: smart min/max with 10% margin
+  const yMin=Math.min(...data), yMax=Math.max(...data)
+  const amp=yMax-yMin, margin=amp>0?amp*0.1:yMax*0.1||1
+  const yAxisMin=yMin-margin<yMax*0.15?0:Math.floor((yMin-margin)*10)/10
+  const yAxisMax=Math.ceil((yMax+margin)*10)/10
+  progChart=new Chart(c,{type:'line',data:{datasets:[{label,data:points,borderColor:color,backgroundColor:color+'22',borderWidth:2,pointRadius:4,pointBackgroundColor:color,tension:.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>{const d=new Date(items[0].parsed.x);return`${d.getDate()} ${MON_SHORT[d.getMonth()]} ${d.getFullYear()}`}}}},scales:{x:{type:'linear',ticks:{color:'#8b91b0',font:{size:11,family:'Inter'},maxTicksLimit:8,callback:function(val){const d=new Date(val);return`${d.getDate()} ${MON_SHORT[d.getMonth()]}`}},grid:{color:'#2e3250'},border:{color:'#2e3250'},min:xMin,max:xMax},y:{ticks:{color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'},min:yAxisMin,max:yAxisMax}}}})}
 
 
 // ── EXERCISES ─────────────────────────────────────────
