@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ── RESET & BASE ─────────────────────────────────────── */
@@ -158,12 +159,13 @@ input:focus,select:focus{border-color:var(--accent)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:16px}
 .cal-dn{text-align:center;font-size:11px;color:var(--text3);padding:4px 0;font-weight:500}
 .cal-d{text-align:center;font-size:13px;padding:7px 2px;border-radius:var(--radius-sm);cursor:pointer;
-  min-height:34px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--text2)}
+  min-height:48px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--text2)}
 .cal-d:hover{background:var(--bg2)}
 .cal-d.had{background:var(--accent-bg);color:var(--accent);font-weight:500}
 .cal-d.sel{outline:2px solid var(--accent);outline-offset:1px}
 .cal-d.oth{color:var(--text3)}
-.cdot{width:4px;height:4px;border-radius:50%;background:var(--accent);margin:2px auto 0}
+.cicons{display:flex;align-items:center;justify-content:center;gap:2px;font-size:17px;line-height:1;margin-top:4px;color:var(--accent);white-space:nowrap}
+.cmore{font-size:10px;font-weight:600;margin-left:1px}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .cal-ml{font-size:15px;font-weight:600;color:var(--text)}
 
@@ -626,6 +628,44 @@ async function renderTL(){
 
 // ── CALENDAR ──────────────────────────────────────────
 
+// Icône par activité : muscu = haltère, cardio = détecté via le nom de l'exercice
+// (icônes Tabler Icons, unicolores — https://tabler.io/icons)
+const ICON_WEIGHT='barbell'
+const ICON_CARDIO_DEFAULT='heart'
+const ICON_RULES=[
+  [/course|running|\brun\b|footing|jogging|trail|sprint|fractionne/,'run'],
+  [/velo|cycl|bike|spinning|vtt/,'bike'],
+  [/natation|nage|swim|piscine/,'swimming'],
+  [/rameur|aviron|rowing|kayak/,'kayak'],
+  [/rando|hike|trek/,'trekking'],
+  [/marche|walk/,'walk'],
+  [/yoga|pilates/,'yoga'],
+  [/etirement|stretch|mobilite/,'stretching'],
+  [/boxe|boxing|mma|kick|karate|judo/,'karate'],
+  [/escalade|climb|bloc/,'mountain'],
+  [/\bski\b|skiing/,'skiing'],
+  [/tennis|padel|squash|badminton/,'ball-tennis'],
+  [/basket/,'ball-basketball'],
+  [/\bfoot\b|football|soccer/,'ball-football'],
+  [/corde|jump rope/,'jump-rope'],
+  [/tapis|treadmill/,'treadmill'],
+]
+function normName(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')}
+function logIcon(l){
+  const exo=exercises.find(e=>e.id===l.exo_id)
+  if((exo?exo.type:l.type)==='weight')return ICON_WEIGHT
+  const n=normName(exo&&exo.name)
+  for(const[re,ic]of ICON_RULES)if(re.test(n))return ic
+  return ICON_CARDIO_DEFAULT
+}
+
+// 2 icônes max par jour, puis "+N"
+function calIcons(icons){
+  const shown=icons.slice(0,2).map(ic=>`<i class="ti ti-${ic}"></i>`).join('')
+  const more=icons.length>2?`<span class="cmore">+${icons.length-2}</span>`:''
+  return`<div class="cicons">${shown}${more}</div>`
+}
+
 function chM(d){calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+d,1);renderCal()}
 
 async function renderCal(){
@@ -633,7 +673,11 @@ async function renderCal(){
   await fetchLogs()
   const y=calMonth.getFullYear(),m=calMonth.getMonth()
   const sess={}
-  logs.forEach(l=>{const dt=new Date(l.date);if(dt.getFullYear()===y&&dt.getMonth()===m)sess[l.date]=(sess[l.date]||0)+1})
+  logs.forEach(l=>{const dt=new Date(l.date);if(dt.getFullYear()===y&&dt.getMonth()===m){
+    // Set → une seule icône par type d'activité dans la journée
+    if(!sess[l.date])sess[l.date]=new Set()
+    sess[l.date].add(logIcon(l))
+  }})
   let html=DOW.map(d=>`<div class="cal-dn">${d}</div>`).join('')
   const first=new Date(y,m,1)
   const start=(first.getDay()+6)%7
@@ -642,8 +686,8 @@ async function renderCal(){
   const todayISO=today()
   for(let d=1;d<=dim;d++){
     const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    const isA=iso===todayISO,isSel=selDay===iso,h=sess[iso]||0
-    html+=`<div class="cal-d${isA?' had':''}${isSel?' sel':''}" onclick="selD('${iso}')">${d}${h?'<div class="cdot"></div>':''}</div>`
+    const isA=iso===todayISO,isSel=selDay===iso,h=sess[iso]
+    html+=`<div class="cal-d${isA?' had':''}${isSel?' sel':''}" onclick="selD('${iso}')">${d}${h?calIcons([...h]):''}</div>`
   }
   document.getElementById('cal-grid').innerHTML=html
   if(selDay)renderDayD(selDay)
