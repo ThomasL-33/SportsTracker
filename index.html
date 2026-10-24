@@ -87,9 +87,14 @@ input,select,button,textarea{font-family:'Inter',sans-serif}
   display:flex;gap:3px;background:var(--bg2);padding:4px;
   border-radius:var(--radius);margin:14px 18px;border:1px solid var(--border);flex-shrink:0;
 }
-.nav-btn{flex:1;padding:7px 2px;font-size:11px;font-weight:500;border:none;border-radius:10px;
-  background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.01em}
-.nav-btn.active{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.nav-btn{flex:1;min-width:0;padding:7px 2px 6px;font-size:19px;line-height:1;border:1px solid transparent;border-radius:10px;
+  background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.nav-btn span{font-size:10px;font-weight:500;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.nav-btn.active{background:var(--bg3);color:var(--text);border-color:var(--border)}
+.icon-btn{font-size:16px;line-height:1;color:var(--text2);background:transparent;border:1px solid var(--border);
+  width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.icon-btn.active{color:var(--text);background:var(--bg3)}
 
 /* ── SCROLLABLE CONTENT ──────────────────────────────── */
 .content{flex:1;overflow-y:auto;padding:0 18px calc(20px + var(--safe-bottom))}
@@ -179,6 +184,22 @@ input:focus,select:focus{border-color:var(--accent)}
 .stat-l{font-size:11px;color:var(--text2);margin-top:3px}
 .chart-wrap{position:relative;width:100%;height:200px;margin-top:8px}
 
+/* ── PERFORMANCE ─────────────────────────────────────── */
+.seg{display:flex;gap:3px;background:var(--bg2);padding:4px;border-radius:10px;border:1px solid var(--border);margin-bottom:14px}
+.seg button{flex:1;padding:6px 2px;font-size:12px;font-weight:500;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text2);cursor:pointer}
+.seg button.active{background:var(--bg3);color:var(--text);border-color:var(--border)}
+.donut-wrap{position:relative;width:180px;height:180px;margin:4px auto 16px}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.donut-total{font-size:30px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.donut-lbl{font-size:11px;color:var(--text2);margin-top:4px}
+.pleg{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.pleg:last-child{border-bottom:none}
+.pleg-ic{font-size:18px;line-height:1;width:18px;display:flex;justify-content:center}
+.pleg-name{flex:1;color:var(--text)}
+.pleg-n{color:var(--text2);font-variant-numeric:tabular-nums}
+.pleg-pct{width:42px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.perf-note{font-size:11px;color:var(--text3);margin-top:8px}
+
 /* ── SETTINGS ────────────────────────────────────────── */
 .setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
 .setting-row:last-child{border-bottom:none}
@@ -245,16 +266,19 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
     <div class="header-right">
       <span class="user-badge" id="user-badge"></span>
+      <button class="icon-btn" onclick="nav('settings',this)" title="Réglages" aria-label="Réglages"><i class="ti ti-settings"></i></button>
       <button class="logout-btn" onclick="doLogout()">Déco</button>
     </div>
   </div>
 
   <div class="nav">
-    <button class="nav-btn active" onclick="nav('add',this)">+ Séance</button>
-    <button class="nav-btn" onclick="nav('timeline',this)">Timeline</button>
-    <button class="nav-btn" onclick="nav('progress',this)">Progrès</button>
-    <button class="nav-btn" onclick="nav('cal',this)">Calendrier</button>
-    <button class="nav-btn" onclick="nav('settings',this)">Réglages</button>
+    <button class="nav-btn active" onclick="nav('add',this)"><i class="ti ti-plus"></i><span>Séance</span></button>
+    <!-- Timeline masquée (code conservé) : décommenter ce bouton pour la réactiver
+    <button class="nav-btn" onclick="nav('timeline',this)"><i class="ti ti-timeline"></i><span>Timeline</span></button>
+    -->
+    <button class="nav-btn" onclick="nav('progress',this)"><i class="ti ti-trending-up"></i><span>Progrès</span></button>
+    <button class="nav-btn" onclick="nav('cal',this)"><i class="ti ti-calendar"></i><span>Calendrier</span></button>
+    <button class="nav-btn" onclick="nav('perf',this)"><i class="ti ti-chart-pie"></i><span>Perf</span></button>
   </div>
 
   <div class="content">
@@ -304,6 +328,17 @@ input:focus,select:focus{border-color:var(--accent)}
       </div>
       <div class="cal-grid" id="cal-grid"></div>
       <div id="cal-detail"></div>
+    </div>
+
+    <!-- PERFORMANCE -->
+    <div id="s-perf" class="section">
+      <div class="seg" id="perf-period">
+        <button data-w="4" onclick="setPerfPeriod(this)">4 sem.</button>
+        <button data-w="13" class="active" onclick="setPerfPeriod(this)">3 mois</button>
+        <button data-w="52" onclick="setPerfPeriod(this)">1 an</button>
+        <button data-w="0" onclick="setPerfPeriod(this)">Tout</button>
+      </div>
+      <div id="perf-body"><div class="spinner">Chargement…</div></div>
     </div>
 
     <!-- RÉGLAGES -->
@@ -500,13 +535,14 @@ async function fetchLogs(){
 
 function nav(id, btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'))
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'))
+  document.querySelectorAll('.nav-btn,.icon-btn').forEach(b=>b.classList.remove('active'))
   document.getElementById('s-'+id).classList.add('on')
   btn.classList.add('active')
   if(id==='timeline')renderTL()
   if(id==='progress')renderProg()
   if(id==='cal')renderCal()
   if(id==='settings')renderExos()
+  if(id==='perf')renderPerf()
   if(id==='add'){fetchLogs().then(()=>renderRecent())}
 }
 
@@ -715,6 +751,122 @@ function renderDayD(iso){
   if(!dayLogs.length){el.innerHTML=`<div style="font-size:13px;color:var(--text3);padding:8px 0">Aucune séance le ${fmt(iso)}</div>`;return}
   el.innerHTML=`<div class="slbl">Séances du ${fmt(iso)}</div><div class="card" style="padding:4px 18px">`+
   dayLogs.map(l=>{const exo=exercises.find(e=>e.id===l.exo_id);return`<div class="log-item"><div><div class="log-name">${exo?exo.name:'?'}</div><div class="log-meta">${logDetail(l)}</div></div></div>`}).join('')+`</div>`
+}
+
+// ── PERFORMANCE ───────────────────────────────────────
+
+// Libellé + couleur par type d'activité (clé = nom d'icône, cf. ICON_RULES)
+const TYPE_META={
+  barbell:['Muscu','#6c8fff'],
+  run:['Course','#3dd68c'],
+  bike:['Vélo','#f5b84a'],
+  swimming:['Natation','#4cc9f0'],
+  kayak:['Rameur','#2ec4b6'],
+  trekking:['Rando','#a3b86c'],
+  walk:['Marche','#c9a27e'],
+  yoga:['Yoga','#c77dff'],
+  stretching:['Étirements','#e0aaff'],
+  karate:['Combat','#ff6b6b'],
+  mountain:['Escalade','#b08968'],
+  skiing:['Ski','#a8dadc'],
+  racket:['Tennis / Padel','#d4e157'],
+  surfboard:['Surf','#f4a261'],
+  'ball-volleyball':['Volley','#ffd166'],
+  'ball-basketball':['Basket','#f77f00'],
+  'ball-football':['Foot','#90be6d'],
+  'jump-rope':['Corde à sauter','#ff8fab'],
+  treadmill:['Tapis','#57cc99'],
+  heart:['Autre cardio','#ff4d6d'],
+}
+const DAY_MS=86400000
+let perfWeeks=13
+let perfCharts=[]
+
+// Dates locales (YYYY-MM-DD) pour ne pas décaler les semaines avec le fuseau horaire
+function isoLocal(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function parseISO(s){return new Date(s+'T12:00:00')}
+function mondayOf(d){const m=new Date(d);m.setHours(12,0,0,0);m.setDate(m.getDate()-(m.getDay()+6)%7);return m}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
+
+function setPerfPeriod(btn){
+  document.querySelectorAll('#perf-period button').forEach(b=>b.classList.remove('active'))
+  btn.classList.add('active')
+  perfWeeks=parseInt(btn.dataset.w)
+  renderPerf()
+}
+
+async function renderPerf(){
+  await fetchLogs()
+  perfCharts.forEach(c=>c.destroy());perfCharts=[]
+  const el=document.getElementById('perf-body')
+  if(!logs.length){el.innerHTML='<div class="empty">Pas encore de séances</div>';return}
+
+  // Fenêtre : N semaines complètes + la semaine en cours ("Tout" = depuis la 1re séance)
+  const todayD=new Date(), todayISO=isoLocal(todayD)
+  const thisMon=mondayOf(todayD)
+  const firstMon=mondayOf(parseISO(logs.reduce((a,l)=>l.date<a?l.date:a,logs[0].date)))
+  let startMon=perfWeeks?addDays(thisMon,-7*perfWeeks):firstMon
+  if(startMon<firstMon)startMon=firstMon   // pas de semaines vides avant la 1re séance
+  const startISO=isoLocal(startMon), thisMonISO=isoLocal(thisMon)
+  const inRange=logs.filter(l=>l.date>=startISO&&l.date<=todayISO)
+
+  // Séance = un type d'activité un jour donné
+  const sessions=new Set(inRange.map(l=>l.date+'|'+logIcon(l)))
+  const byType={}
+  sessions.forEach(s=>{const t=s.split('|')[1];byType[t]=(byType[t]||0)+1})
+  const types=Object.keys(byType).sort((a,b)=>byType[b]-byType[a])
+  const total=sessions.size
+
+  // Jours actifs par semaine (semaine en cours exclue de la moyenne)
+  const weeks=[]
+  for(let w=new Date(startMon);w<=thisMon;w=addDays(w,7))weeks.push(isoLocal(w))
+  const activeDays=new Set(inRange.map(l=>l.date))
+  const perWeek=weeks.map(()=>0)
+  activeDays.forEach(d=>{const i=Math.round((mondayOf(parseISO(d))-startMon)/(7*DAY_MS));if(i>=0&&i<perWeek.length)perWeek[i]++})
+  const fullWeeks=weeks.length-1
+  const fullDays=perWeek.slice(0,fullWeeks).reduce((a,b)=>a+b,0)
+  const avg=fullWeeks?fullDays/fullWeeks:null
+
+  const meta=t=>TYPE_META[t]||[t,'#8b91b0']
+  el.innerHTML=`
+    <div class="card">
+      <div class="fl">Séances</div>
+      ${total?`<div class="donut-wrap"><canvas id="perf-donut"></canvas>
+        <div class="donut-center"><div class="donut-total">${total}</div><div class="donut-lbl">séance${total>1?'s':''}</div></div></div>
+      <div>${types.map(t=>`<div class="pleg">
+        <span class="pleg-ic" style="color:${meta(t)[1]}">${iconHtml(t)}</span>
+        <span class="pleg-name">${meta(t)[0]}</span>
+        <span class="pleg-n">${byType[t]}</span>
+        <span class="pleg-pct">${Math.round(byType[t]/total*100)}%</span></div>`).join('')}</div>`
+      :'<div class="empty">Aucune séance sur cette période</div>'}
+    </div>
+    <div class="card">
+      <div class="fl">Jours actifs par semaine</div>
+      <div class="stat-g" style="margin-bottom:6px">
+        <div class="stat"><div class="stat-v">${avg===null?'—':avg.toFixed(1).replace('.',',')}</div><div class="stat-l">moyenne / semaine</div></div>
+        <div class="stat"><div class="stat-v">${perWeek[perWeek.length-1]}</div><div class="stat-l">cette semaine</div></div>
+      </div>
+      <div class="chart-wrap"><canvas id="perf-weeks"></canvas></div>
+      <div class="perf-note">${fullWeeks?`Moyenne sur ${fullWeeks} semaine${fullWeeks>1?'s':''} complète${fullWeeks>1?'s':''}, semaine en cours exclue.`:'Pas encore de semaine complète : la moyenne apparaîtra lundi prochain.'}</div>
+    </div>`
+
+  if(total){
+    perfCharts.push(new Chart(document.getElementById('perf-donut'),{type:'doughnut',
+      data:{labels:types.map(t=>meta(t)[0]),datasets:[{data:types.map(t=>byType[t]),backgroundColor:types.map(t=>meta(t)[1]),borderColor:'#1e2235',borderWidth:2}]},
+      options:{cutout:'70%',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}}))
+  }
+
+  // Histogramme : semaine en cours plus pâle, ligne pointillée = moyenne
+  const labels=weeks.map(w=>{const d=parseISO(w);return`${d.getDate()} ${MON_SHORT[d.getMonth()]}`})
+  const datasets=[{type:'bar',label:'Jours actifs',data:perWeek,
+    backgroundColor:perWeek.map((_,i)=>i===fullWeeks?'#6c8fff55':'#6c8fff'),borderRadius:4,maxBarThickness:28}]
+  if(avg!==null)datasets.push({type:'line',label:'Moyenne',data:weeks.map(()=>avg),borderColor:'#3dd68c',borderWidth:1.5,borderDash:[5,4],pointRadius:0})
+  perfCharts.push(new Chart(document.getElementById('perf-weeks'),{type:'bar',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>'Semaine du '+i[0].label+(i[0].dataIndex===fullWeeks?' (en cours)':''),
+        label:i=>i.dataset.type==='line'?`Moyenne : ${avg.toFixed(1).replace('.',',')}`:`${i.raw} jour${i.raw>1?'s':''} actif${i.raw>1?'s':''}`}}},
+      scales:{x:{ticks:{color:'#8b91b0',font:{size:10,family:'Inter'},maxRotation:0,autoSkip:true,maxTicksLimit:7},grid:{display:false},border:{color:'#2e3250'}},
+        y:{min:0,max:7,ticks:{stepSize:1,color:'#8b91b0',font:{size:11,family:'Inter'}},grid:{color:'#2e3250'},border:{color:'#2e3250'}}}}}))
 }
 
 // ── PROGRESS ──────────────────────────────────────────
